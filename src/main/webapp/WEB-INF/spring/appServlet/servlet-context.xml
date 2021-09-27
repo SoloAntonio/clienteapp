@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns="http://www.springframework.org/schema/beans"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:jdbc="http://www.springframework.org/schema/jdbc"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xsi:schemaLocation="http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+		http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc.xsd
+		http://www.springframework.org/schema/aop
+        http://www.springframework.org/schema/aop/spring-aop.xsd">
+
+	<context:component-scan base-package="mx.com.citi.demo" />
+	
+	<mvc:annotation-driven>
+		<mvc:message-converters>
+	    <bean class="org.springframework.http.converter.json.MappingJackson2HttpMessageConverter">
+	        <property name="objectMapper">
+	            <bean class="mx.com.citi.demo.util.HibernateAwareObjectMapper" />
+	        </property>
+	    </bean>
+		</mvc:message-converters>
+	</mvc:annotation-driven>
+
+	<mvc:default-servlet-handler/>
+	<mvc:resources mapping="/resources/**" location="/resources/" />
+
+ 	<bean
+		class="org.springframework.jdbc.datasource.SimpleDriverDataSource"
+		id="dataSource">
+		<property name="driverClass" value="org.h2.Driver" />
+		<property name="url"
+			value="jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;TRACE_LEVEL_SYSTEM_OUT=2" />
+		<property name="username" value ="sa" />
+		<property name="password" value= ""/>		
+	</bean>  
+		
+    <bean id="sessionFactory"
+        class="org.springframework.orm.hibernate4.LocalSessionFactoryBean">
+        <property name="dataSource" ref="dataSource" />
+		<property name="configLocation" value="classpath:hibernate.cfg.xml" />
+    </bean>
+     
+    <bean id="transactionManager"
+        class="org.springframework.orm.hibernate4.HibernateTransactionManager">
+        <property name="sessionFactory" ref="sessionFactory" />
+    </bean>
+    
+    <bean id="estadoDAO" class="mx.com.citi.demo.dao.EstadoDAOImpl">
+	    <constructor-arg>
+	        <ref bean="sessionFactory" />
+	    </constructor-arg>
+    </bean>
+    
+    <bean id="estadoService" class="mx.com.citi.demo.service.EstadoServiceImpl">
+		<property name="estadoDAO" ref="estadoDAO"></property>   
+	</bean>	
+
+ 	<bean id="clienteDAO" class="mx.com.citi.demo.dao.ClienteDAOImpl">
+	    <constructor-arg>
+	        <ref bean="sessionFactory" />
+	    </constructor-arg>
+    </bean>
+    
+    <bean id="clienteService" class="mx.com.citi.demo.service.ClienteServiceImpl">
+        <property name="clienteDAO" ref="clienteDAO"></property>
+    </bean>	
+    
+    <bean id="estadoController"  class="mx.com.citi.demo.controller.EstadoController">
+        <property name="estadoService" ref="estadoService"></property>
+    </bean>	
+    
+    <bean id="clienteController"  class="mx.com.citi.demo.controller.ClienteController">
+        <property name="clienteService" ref="clienteService"></property>
+    </bean>
+    
+    <tx:advice id="txAdvice" transaction-manager="transactionManager">
+        <tx:attributes>
+            <tx:method name="get*"  read-only="true"/>
+            <tx:method name="list*" read-only="true"/>
+            <tx:method name="*"/>
+        </tx:attributes>
+    </tx:advice>
+
+    <aop:config>
+        <aop:pointcut id="serviceOperation" expression="execution(* mx.com.citi.demo.service.*ServiceImpl.*(..))"/>
+        <aop:advisor advice-ref="txAdvice" pointcut-ref="serviceOperation"/>
+    </aop:config>
+	
+</beans>
